@@ -14,5 +14,5 @@ This Streamlit app recognizes facial emotions in real time using your webcam.
 
 1. Clone the repo:
 ```bash
-git clone https://github.com/YOUR_USERNAME/emotion-recognition-app.git
-cd emotion-recognition-app
+git clone https://github.com/muhan17/emotion_app.git
+cd emotion_app
