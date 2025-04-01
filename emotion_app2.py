@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import cv2
 import numpy as np
+import os
+import gdown
 from torchvision import transforms, models
 from PIL import Image
 from collections import deque, Counter
@@ -17,13 +19,21 @@ EMOTIONS = ['Angry', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 POSITIVE_EMOTIONS = ['Happy', 'Surprise', 'Neutral']
 NEGATIVE_EMOTIONS = ['Angry', 'Sad', 'Fear']
 
-# ==== Load Model ====
+# ==== Load model from Google Drive ====
 @st.cache_resource
 def load_model():
+    MODEL_PATH = "best_emotion_model_gray48_1.pth"
+    FILE_ID = "1h6OZWxlWDr_IDzlb4LucQzWV56kSqgza"
+    DOWNLOAD_URL = f"https://drive.google.com/uc?id={FILE_ID}"
+
+    if not os.path.exists(MODEL_PATH):
+        with st.spinner("⬇️ Downloading model from Google Drive..."):
+            gdown.download(DOWNLOAD_URL, MODEL_PATH, quiet=False)
+
     model = models.resnet18(pretrained=False)
     model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
     model.fc = nn.Linear(model.fc.in_features, 6)
-    model.load_state_dict(torch.load("best_emotion_model_gray48_1.pth", map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
     model.eval()
     return model
 
@@ -38,7 +48,7 @@ transform = transforms.Compose([
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-# ==== Traffic Light Logic ====
+# ==== Traffic light logic ====
 def get_quality_status(recent_emotions):
     last = list(recent_emotions)[-10:]
     neg = sum(1 for e in last if e in NEGATIVE_EMOTIONS)
@@ -49,13 +59,14 @@ def get_quality_status(recent_emotions):
     else:
         return "🟢 Satisfied", (0, 255, 0)
 
-# ==== UI Elements ====
+# ==== Streamlit UI ====
 st.title("🎥 Real-Time Emotion Recognition")
 FRAME_WINDOW = st.image([])
 emotion_display = st.empty()
 traffic_light_display = st.empty()
 timer_display = st.empty()
 
+# ==== State ====
 if "running" not in st.session_state:
     st.session_state.running = False
     st.session_state.start_time = None
@@ -65,7 +76,7 @@ if "running" not in st.session_state:
 start_button = st.button("▶️ Start Session")
 stop_button = st.button("⏹️ Stop Session")
 
-# ==== Start Camera Session ====
+# ==== Start camera session ====
 if start_button:
     st.session_state.running = True
     st.session_state.start_time = time.time()
@@ -131,7 +142,7 @@ if start_button:
 if stop_button:
     st.session_state.running = False
 
-# ==== Results and Logs ====
+# ==== Results after session ====
 if not st.session_state.running and st.session_state.emotion_log:
     st.subheader("📋 Emotion Log")
     df = pd.DataFrame(st.session_state.emotion_log)
@@ -152,9 +163,7 @@ if not st.session_state.running and st.session_state.emotion_log:
 
     df.to_csv("emotion_logs.csv", index=False)
 
-    # ==== Final Verdict ====
     st.subheader("📌 Final Verdict: Was the Client Satisfied?")
-
     counts = df["emotion"].value_counts()
     total = counts.sum()
     negative = sum(counts.get(e, 0) for e in NEGATIVE_EMOTIONS)
