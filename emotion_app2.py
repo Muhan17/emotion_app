@@ -137,7 +137,6 @@ if start_button:
         time.sleep(0.05)
 
     cap.release()
-    cv2.destroyAllWindows()
 
 if stop_button:
     st.session_state.running = False
